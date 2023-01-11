@@ -125,21 +125,29 @@ export class FilePickerComponent implements OnInit, OnDestroy {
   /** On file dropped */
   public dropped(event: UploadEvent) {
     const files = event.files;
-    const filesForUpload: File[] = [];
+    const filesForUpload: Promise<File>[] = [];
+
     for (const droppedFile of files) {
       // Is it a file?
       if (droppedFile.fileEntry.isFile) {
         const fileEntry = droppedFile.fileEntry as FileSystemFileEntry;
-        fileEntry.file((file: File) => {
-          filesForUpload.push(file);
-        });
+        filesForUpload.push(new Promise((resolve, reject) => {
+          try {
+            fileEntry.file(resolve);
+          } catch (err) {
+            reject(err);
+          }
+        }));
       } else {
         // It was a directory (empty directories are added, otherwise only files)
         const fileEntry = droppedFile.fileEntry as FileSystemDirectoryEntry;
         // console.log(droppedFile.relativePath, fileEntry);
       }
     }
-    setTimeout(() => this.handleFiles(filesForUpload).subscribe());
+
+    Promise.all(filesForUpload).then(files => {
+      this.handleFiles(files).subscribe();
+    });
   }
 
   /** Emits event when file upload api returns success  */
